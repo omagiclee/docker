@@ -1,0 +1,25 @@
+# Git 与 IDE
+.git
+.gitignore
+.cursor
+.vscode
+*.swp
+*~
+
+# 文档与杂项
+README.md
+*.md
+.DS_Store
+
+# Python
+__pycache__
+*.py[cod]
+*.egg-info
+.venv
+venv
+*.egg
+
+# 减小 context：大目录下的版本控制与缓存（保留构建所需文件即可）
+oh-my-zsh/.git
+torch_wheels/*.log
+*.log

@@ -1,0 +1,58 @@
+# syntax=docker/dockerfile:1
+# Ubuntu 22.04 (Jammy) 版本
+# 构建: docker build -f Dockerfile.jammy .
+FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Shanghai \
+    LANG=en_US.UTF-8
+
+# 1. 源 + 基础包 + 时区 + locale + 默认 zsh
+RUN rm -f /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null; true
+COPY configs/ubuntu.sources.aliyun.jammy /etc/apt/sources.list.d/ubuntu.sources
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    chmod 1777 /tmp && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        tzdata zsh git curl wget ca-certificates locales openssh-server vim tini && \
+    ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone && \
+    locale-gen en_US.UTF-8 && \
+    chsh -s "$(which zsh)" root && \
+    ldconfig
+
+# 2. Oh My Zsh + 插件
+COPY --link oh-my-zsh/ohmyzsh/ /root/.oh-my-zsh/
+COPY --link oh-my-zsh/zsh-syntax-highlighting/ /root/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting/
+COPY --link oh-my-zsh/zsh-autosuggestions/ /root/.oh-my-zsh/custom/plugins/zsh-autosuggestions/
+RUN cp /root/.oh-my-zsh/templates/zshrc.zsh-template /root/.zshrc && \
+    sed -i 's/^plugins=(.*)/plugins=(git zsh-syntax-highlighting zsh-autosuggestions)/' /root/.zshrc && \
+    echo "cd /workspace" >> /root/.zshrc
+
+SHELL ["/usr/bin/zsh", "-c"]
+
+# 3. Miniconda（安装包用 bind mount，不进镜像层）
+COPY --link configs/condarc.tsinghua /root/.condarc
+RUN --mount=type=bind,source=Miniconda3-latest-Linux-x86_64.sh,target=/tmp/miniconda.sh \
+    bash /tmp/miniconda.sh -b -p /opt/conda && \
+    /opt/conda/bin/conda init zsh && \
+    /opt/conda/bin/conda clean -afy && \
+    echo "default_channels: []" > /opt/conda/.condarc
+ENV PATH=/opt/conda/bin:$PATH
+
+# 4. Pip 阿里源 + 升级 pip
+COPY --link configs/pip.conf /root/.config/pip/pip.conf
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip
+
+# 5. SSH 配置（放最后，改配置时只重建本层）
+RUN mkdir -p /run/sshd
+COPY ssh/sshd_config /etc/ssh/sshd_config
+COPY ssh/ssh-start-chpasswd.sh /usr/sbin/ssh-start-chpasswd.sh
+RUN chmod 500 /usr/sbin/ssh-start-chpasswd.sh
+
+WORKDIR /workspace
+EXPOSE 22
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["/usr/sbin/ssh-start-chpasswd.sh"]

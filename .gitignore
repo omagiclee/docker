@@ -1,0 +1,9 @@
+
+# Miniconda 安装包（体积大，离线构建时自行放置）
+Miniconda3-latest-Linux-x86_64.sh
+
+# torch_wheels 中的 wheel 文件（体积大，离线构建时自行放置）
+torch_wheels/*.whl
+
+
+oh-my-zsh

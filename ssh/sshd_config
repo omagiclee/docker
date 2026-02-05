@@ -1,0 +1,31 @@
+# 端口与协议
+Port 22
+Protocol 2
+
+# 主机密钥（由 Dockerfile 中 ssh-keygen -A 生成）
+HostKey /etc/ssh/ssh_host_rsa_key
+HostKey /etc/ssh/ssh_host_ecdsa_key
+HostKey /etc/ssh/ssh_host_ed25519_key
+
+# 身份验证
+PermitRootLogin yes
+StrictModes yes
+PubkeyAuthentication yes
+AuthorizedKeysFile %h/.ssh/authorized_keys
+PasswordAuthentication yes
+PermitEmptyPasswords no
+HostbasedAuthentication no
+IgnoreRhosts yes
+
+# 容器内建议关闭 PAM，避免依赖不完整导致登录异常；密码由 chpasswd 写入，sshd 可直接校验
+UsePAM no
+
+# 杂项
+X11Forwarding yes
+PrintMotd no
+PrintLastLog yes
+TCPKeepAlive yes
+AcceptEnv LANG LC_*
+
+# SFTP（Ubuntu 常见路径）
+Subsystem sftp /usr/lib/openssh/sftp-server
